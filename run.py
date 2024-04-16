@@ -124,29 +124,29 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
 
 
 
+def run_training():
+    model_ft = models.resnet18(weights='IMAGENET1K_V1')
+    num_ftrs = model_ft.fc.in_features
 
-model_ft = models.resnet18(weights='IMAGENET1K_V1')
-num_ftrs = model_ft.fc.in_features
-# Here the size of each output sample is set to 2.
-# Alternatively, it can be generalized to ``nn.Linear(num_ftrs, len(class_names))``.
-model_ft.fc = nn.Linear(num_ftrs, 3)
+    # Here the size of each output sample is set to 2.
+    # Alternatively, it can be generalized to ``nn.Linear(num_ftrs, len(class_names))``.
+    model_ft.fc = nn.Linear(num_ftrs, 3)
 
-model_ft = model_ft.to(device)
+    model_ft = model_ft.to(device)
 
-criterion = nn.CrossEntropyLoss()
+    criterion = nn.CrossEntropyLoss()
 
-# Observe that all parameters are being optimized
-optimizer_ft = optim.SGD(model_ft.parameters(), lr=0.001, momentum=0.9)
+    # Observe that all parameters are being optimized
+    optimizer_ft = optim.SGD(model_ft.parameters(), lr=0.001, momentum=0.9)
 
-# Decay LR by a factor of 0.1 every 7 epochs
-exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
+    # Decay LR by a factor of 0.1 every 7 epochs
+    exp_lr_scheduler = lr_scheduler.StepLR(optimizer_ft, step_size=7, gamma=0.1)
 
+    # Train and evaluate:
+    model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
+                           num_epochs=25)
 
-# Train and evaluate:
-
-model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
-                       num_epochs=25)
-
+    return model_ft
 
 
 def infer_class(model,img_path):
@@ -173,9 +173,17 @@ def infer_class(model,img_path):
 
 
 if __name__ == '__main__':
+    model_file = Path('octopus_whale_penguin_model.pt')
+    if model_file.exists():
+        model = torch.load(model_file)
+    else:
+        model = run_training()
+        torch.save(model, 'octopus_whale_penguin_model.pt')
+
+
     if len(argv) >= 2:
         input_file = Path(argv[1])
         if input_file.exists():
-            print(infer_class(model_ft, input_file))
+            print(infer_class(model, input_file))
         
 
