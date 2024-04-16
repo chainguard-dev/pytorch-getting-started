@@ -1,7 +1,4 @@
-# https://pytorch.org/tutorials/beginner/transfer_learning_tutorial.html
-
-
-
+from sys import argv
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -15,6 +12,9 @@ import time
 import os
 from PIL import Image
 from tempfile import TemporaryDirectory
+from pathlib import Path
+
+
 
 cudnn.benchmark = True
 plt.ion()   # interactive mode
@@ -36,7 +36,7 @@ data_transforms = {
     ]),
 }
 
-data_dir = 'data/hymenoptera_data'
+data_dir = 'data/octopus-penguin-whale'
 image_datasets = {x: datasets.ImageFolder(os.path.join(data_dir, x),
                                           data_transforms[x])
                   for x in ['train', 'val']}
@@ -87,6 +87,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
                     # track history if only in train
                     with torch.set_grad_enabled(phase == 'train'):
                         outputs = model(inputs)
+
                         _, preds = torch.max(outputs, 1)
                         loss = criterion(outputs, labels)
 
@@ -122,13 +123,13 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
     return model
 
 
-#####
+
 
 model_ft = models.resnet18(weights='IMAGENET1K_V1')
 num_ftrs = model_ft.fc.in_features
 # Here the size of each output sample is set to 2.
 # Alternatively, it can be generalized to ``nn.Linear(num_ftrs, len(class_names))``.
-model_ft.fc = nn.Linear(num_ftrs, 2)
+model_ft.fc = nn.Linear(num_ftrs, 3)
 
 model_ft = model_ft.to(device)
 
@@ -147,10 +148,9 @@ model_ft = train_model(model_ft, criterion, optimizer_ft, exp_lr_scheduler,
                        num_epochs=25)
 
 
-# inference
 
-def visualize_model_predictions(model,img_path):
-    was_training = model.training
+def infer_class(model,img_path):
+
     model.eval()
 
     img = Image.open(img_path)
@@ -162,6 +162,8 @@ def visualize_model_predictions(model,img_path):
         outputs = model(img)
         _, preds = torch.max(outputs, 1)
 
+        return class_names[preds]
+
         ax = plt.subplot(2,2,1)
         ax.axis('off')
         ax.set_title(f'Predicted: {class_names[preds[0]]}')
@@ -170,12 +172,10 @@ def visualize_model_predictions(model,img_path):
         model.train(mode=was_training)
 
 
-path = '/home/patrick/Downloads/bee.jpg'
+if __name__ == '__main__':
+    if len(argv) >= 2:
+        input_file = Path(argv[1])
+        if input_file.exists():
+            print(infer_class(model_ft, input_file))
+        
 
-visualize_model_predictions(
-    model_ft,
-    img_path=path
-)
-
-plt.ioff()
-plt.show()
