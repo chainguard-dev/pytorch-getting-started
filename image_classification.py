@@ -43,7 +43,7 @@ image_datasets = {
 }
 dataloaders = {
     x: torch.utils.data.DataLoader(
-        image_datasets[x], batch_size=4, shuffle=True, num_workers=4
+        image_datasets[x], batch_size=4, shuffle=True, num_workers=1
     )
     for x in ["train", "val"]
 }

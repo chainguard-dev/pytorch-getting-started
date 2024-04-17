@@ -79,7 +79,11 @@ In this section, we'll download prepared data to your environment, download a mo
 Download necessary files and train the model with the following:
 
 ```bash
-
+mkdir image_classification && cd image_classification && \\
+ curl https://codeload.github.com/chainguard-dev/pytorch-cuda-getting-started/tar.gz/main | \
+ tar -xz --strip=1 pytorch-cuda-getting-started-main/ && \
+ docker run --user root --rm -it -v "$PWD/:/home/nonroot/octopus-detector" --gpus all cgr.dev/chainguard/pytorch-cuda12:latest -c "python /home/nonroot/octopus-detector/image_classification.py"
+``` 
 
 
 
