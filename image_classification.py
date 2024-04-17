@@ -36,7 +36,8 @@ data_transforms = {
     ),
 }
 
-data_dir = Path(__file__).resolve().parents[0] / Path("data/octopus-penguin-whale")
+script_directory = Path(__file__).resolve().parents[0]
+data_dir = script_directory / Path("data/octopus-penguin-whale")
 image_datasets = {
     x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x])
     for x in ["train", "val"]
@@ -174,7 +175,7 @@ if __name__ == "__main__":
         model = torch.load(model_file)
     else:
         model = run_training()
-        torch.save(model, "octopus_whale_penguin_model.pt")
+        torch.save(model, script_directory / Path("octopus_whale_penguin_model.pt"))
 
     if len(argv) >= 2:
         input_file = Path(argv[1])
