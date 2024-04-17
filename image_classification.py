@@ -3,13 +3,13 @@ import time
 from tempfile import TemporaryDirectory
 from pathlib import Path
 from sys import argv
+
 import torch
 from torch import nn, optim
 from torch.optim import lr_scheduler
 from torch.backends import cudnn
 from torchvision import datasets, models, transforms
 from PIL import Image
-
 
 
 cudnn.benchmark = True
@@ -53,9 +53,6 @@ class_names = image_datasets["train"].classes
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
-####
-
-
 def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
     since = time.time()
 
@@ -67,8 +64,7 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
         best_acc = 0.0
 
         for epoch in range(num_epochs):
-            print(f"Epoch {epoch}/{num_epochs - 1}")
-            print("-" * 10)
+            print(f"🐙 Epoch {epoch}/{num_epochs - 1}")
 
             # Each epoch has a training and validation phase
             for phase in ["train", "val"]:
@@ -80,7 +76,6 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
                 running_loss = 0.0
                 running_corrects = 0
 
-                # Iterate over data.
                 for inputs, labels in dataloaders[phase]:
                     inputs = inputs.to(device)
                     labels = labels.to(device)
@@ -110,7 +105,8 @@ def train_model(model, criterion, optimizer, scheduler, num_epochs=25):
                 epoch_loss = running_loss / dataset_sizes[phase]
                 epoch_acc = running_corrects.double() / dataset_sizes[phase]
 
-                print(f"{phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
+                phase_emoji = '🐳' if phase == 'train' else '🐧'
+                print(f"{phase_emoji} {phase} Loss: {epoch_loss:.4f} Acc: {epoch_acc:.4f}")
 
                 # deep copy the model
                 if phase == "val" and epoch_acc > best_acc:

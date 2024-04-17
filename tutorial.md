@@ -1,0 +1,361 @@
+---
+title: "Getting Started with the PyTorch-CUDA12 Chainguard Image"
+type: "article"
+linktitle: "pytorch-cuda12"
+aliases: 
+- /chainguard/chainguard-images/getting-started/getting-started-pytorch-cuda12
+description: "Getting started tutorial on the PyTorch-CUDA12 Chainguard Image"
+date: 2024-04-27:07:52+02:00
+lastmod: 2024-04-27:46:53+00:00
+tags: ["Chainguard Images", "Products"]
+draft: false
+images: []
+menu:
+  docs:
+    parent: "getting-started"
+weight: 611
+toc: true
+---
+
+Chainguard offers a minimal, low-CVE image for deep learning with PyTorch that includes the CUDA 12 parallel computing platform for performing computation on NVIDIA GPUs. This introductory guide to Chainguard's pytorch-cuda12 image will walk you through fine-tuning an image classification model, saving the model, and running it securely for inference. 
+
+{{< details "Chainguard Images" >}}
+{{< blurb/images >}}
+{{< /details >}}
+
+{{< details "What is Wolfi" >}}
+{{< blurb/wolfi >}}
+{{< /details >}}
+
+This guide is designed for use in an environment with access to one or more NVIDIA GPUs. However, the code below is written to also run in a CPU-only environment. Please note that tuning the model will take significantly longer in a CPU-only environment.
+
+## Testing Access to GPUs
+
+Our first step is to check whether our PyTorch-CUDA environment has access to connected GPUs.
+
+If you don't already have Docker Engine installed, follow the [instructions for installing Docker Engine on your host machine](https://docs.docker.com/engine/install/). 
+
+Run the below command to pull the image, run it with GPU access, and start a Python interpreter inside the running container.
+
+```bash
+docker run --rm -it \
+    --gpus all \
+	cgr.dev/chainguard/pytorch-cuda12:latest \
+	-c python
+```
+
+Running the above for the first time may take a few minutes to pull the pytorch-cuda12 image. Once the image runs, you will be interacting with a Python interpreter in the running container. Enter the following commands at the prompt to check the availability of your GPU.
+
+```
+Python 3.11.9 (main, Apr  2 2024, 15:40:32) [GCC 13.2.0] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import torch
+>>> torch.cuda.is_available()
+True
+>>> torch.cuda.device_count()
+1
+>>> torch.cuda.get_device_name(0)
+'Tesla V100-SXM2-16GB'
+```
+
+If the CUDA computing environment is accessible to PyTorch, `torch.cuda.is_available()` will return `True`. You should also check that at least one GPU is connected. If your environment only has access to CPU, you can complete the rest of this tutorial, but the step of fine-tuning the pretrained model will take significantly longer.
+
+Once you've determined that your environment has access to CUDA and connected GPUs, exit the container by typing `Control-d` or by typing `exit()` and pressing `Enter`. You should be returned to the prompt of your host machine.
+
+## Training and Inference Overview
+
+A common workflow in deep learning is to collect labeled data, train a model using that data, and store the model. Later, this model can be loaded and used for inference, or making predictions based on new inputs. For example, we might train a model to recognize animals, then store the model as a serialized and compressed file. Later, and possibly in a new environment, we can load the model and use it to perform a classification task on novel data, such as an image of a whale.
+
+It is common for model training to be performed in a more controlled developer environment, and for inference to be performed in a less controlled production environment. We will follow this assumption in this tutorial, but be mindful not to use privileged access or root users in production.
+
+In this tutorial, we'll fine-tune a pretrained model for an image classification task. The task will be to classify whether a provided image is an octopus 🐙, a whale 🐳, or a penguin 🐧. We've chosen these for Wolfi / Chainguard Images, Docker, and Linux, respectively. Rather than train a model from scratch, a process that requires a large set of input data, we'll start with a ResNet model with 18 layers (resnet18). Using a fine-tuning approach with a pretrained model with relatively few layers is appropriate when using a limited amount of input data. In our case, we'll be using 60 images for each class, further divided into 40 training and 20 validation images.
+
+For the training step, we'll be accessing the image as root. This allows us to save the model to a volume and preserve it on the host system. In our inference step, we'll access the container as the nonroot user, an approach that will be more secure for a production use case.
+
+## Fine-Tuning the Model
+
+In this section, we'll download prepared data to your environment, download a model training script, and run the script to train and save the model. These tasks will all be performed by running the below command. Further details on the Docker command, input data, and script are provided later in the section.
+
+Download necessary files and train the model with the following:
+
+```bash
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Example 1 — Minimal Python Chainguard Image
+
+In this example, we'll build and run a distroless Python Chainguard Image in a single-stage build process. We'll first make a demonstration app and then build and run it.
+
+### Step 1: Setting up a Demo Application
+
+We'll start by creating a basic command-line Python application to serve as a demo. This app will generate random octopus facts based on a list in a text file. This app will use the `random` module from the Python standard library.
+
+First, create a directory for your app. You can use any meaningful name and path for you, our example will use `octo-facts/`.
+
+```shell
+mkdir ~/octo-facts/ && cd $_
+```
+
+Create a new file to serve as the application entry point. We’ll use `main.py`. You can edit this file in whatever code editor you would like. We'll use Nano as an example.
+
+```shell
+nano main.py
+```
+
+The following Python script defines a light CLI app that takes in a text file, `octo-facts.txt`, and returns a random line from that file.
+
+```python
+'''Import random module to implement random.choice() function'''
+import random
+
+
+def random_line(text):
+    '''Opens and reads lines of a UTF-8 encoded file, returning a random line'''
+    with open(text, 'r', encoding='UTF-8') as file:
+        line = file.readlines()
+        return random.choice(line)
+
+def main():
+    '''Prints random line from facts.txt; verify your path'''
+    print(random_line('facts.txt'))
+
+if __name__ == "__main__":
+    main()
+
+```
+
+Copy this code to your `main.py` script, save and close the file.
+
+Next, pull down the `facts.txt` file with `curl`. [Inspect the URL](https://raw.githubusercontent.com/chainguard-dev/edu-images-demos/main/python/octo-facts/facts.txt) before downloading it to ensure it is safe to do so. Make sure you are still in the same directory where your `main.py` script is.
+
+```shell
+curl -O https://raw.githubusercontent.com/chainguard-dev/edu-images-demos/main/python/octo-facts/facts.txt
+```
+
+At this point, you can run the script and be sure you are satisfied with the functionality. It is recommended that you use a Python programming environment. Ensure whether you will be using the `python` or `python3` command.
+
+```shell
+python main.py
+```
+
+You should receive the output of a randomized octopus fact.
+
+```
+The wolfi octopus was discovered in 1913.
+```
+
+The demo application is now ready. In the next step, you’ll create a Dockerfile to run your app.
+
+### Step 2: Creating the Dockerfile
+
+For this single-stage build, we'll only use one `FROM` line in our Dockerfile. Our resulting image will be based on the distroless Python Wolfi image, which means it doesn’t come with a package manager or even a shell.
+
+We'll begin by creating a Dockerfile. Again, you can use any code editor of your choice, we'll use Nano for demonstation purposes.
+
+```shell
+nano Dockerfile
+```
+
+The following Dockerfile will:
+
+1. Start a build stage based on the `python:latest` image;
+2. Declare the working directory;
+3. Copy the script and the text file that's being read;
+4. Set up the application as entry point for this image.
+
+```Dockerfile
+FROM cgr.dev/chainguard/python:latest
+
+WORKDIR /octo-facts
+
+COPY main.py facts.txt ./
+
+ENTRYPOINT [ "python", "/octo-facts/main.py" ]
+```
+
+Save the file when you're finished.
+
+You can now build the image. If you receive an error, try again with `sudo`.
+
+```shell
+docker build . -t octo-facts
+```
+
+Once the build is finished, run the image.
+
+```shell
+docker run --rm octo-facts
+```
+
+And you should get output similar to what you got before, with a random octopus fact.
+
+```
+Octopuses can breathe and see through their skin.
+```
+
+You have successfully completed the single-stage Python Chainguard Image. At this point, you can continue to the [multi-stage example](#example-2-multi-stage-build-for-python-chainguard-image) or [advanced usage](#advanced-usage).
+
+## Example 2 — Multi-Stage Build for Python Chainguard Image
+
+In this example, we'll build and run a multi-stage Python Chainguard Image. We'll have a build image
+that includes pip and a shell before creating a final distroless image without these development
+tools for production.
+
+### Step 1: Setting up a Demo Application
+
+We'll start by creating a Python application that will take in an image file and convert it to ANSI escape sequences on the CLI to render an image.
+
+To begin, create a directory for your app. You can use any meaningful name and path that resonates with you, our example will use `inky/`.
+
+```shell
+mkdir ~/inky/ && cd $_
+```
+
+We'll first write out the requirements for our app in a new file, for example we named our file `requirements.txt`. You can edit this file in your preferred code editor, in our case we will use Nano.
+
+```shell
+nano requirements.txt
+```
+
+We'll use version 68.2.2 of Python [setuptools](https://pypi.org/project/setuptools/) and also install [climage](https://pypi.org/project/climage/). We need to use a slightly older version of setuptools for compatability with climage. Add the following text to the file:
+
+```shell
+setuptools==68.2.2
+climage==0.2.0
+```
+
+Save the file and we will next create a new file with our python code called `inky.py`. You can edit this file in whatever code editor you would like. We’ll use Nano as an example.
+
+```shell
+nano inky.py
+```
+
+Add the following Python code which defines a CLI app that takes in an image file, `inky.png`, and
+prints a representation of that file to the terminal:
+
+```python
+'''import climage module to display images on terminal'''
+from climage import convert
+
+
+def main():
+    '''Take in PNG and output as ANSI to terminal'''
+    output = convert('inky.png', is_unicode=True)
+    print(output)
+
+if __name__ == "__main__":
+    main()
+```
+
+Next, pull down the `inky.png` image file with `curl`. [Inspect the URL](https://raw.githubusercontent.com/chainguard-dev/edu-images-demos/main/python/inky/inky.png) before downloading it to ensure it is safe to do so. Make sure you are still in the same directory where your `inky.py` script is.
+
+```shell
+curl -O https://raw.githubusercontent.com/chainguard-dev/edu-images-demos/main/python/inky/inky.png
+```
+
+If you have python and pip installed in your local environment, you can now install the dependencies with `pip` and run our program. Don't worry if you don't have python installed, you can simply skip this step and move onto the Dockerfile.
+
+```shell
+pip install -r requirements.txt
+python inky.py
+```
+
+You'll receive a representation of the Chainguard Inky logo on the command line. With your demo application ready, you're ready to move onto the container stage.
+
+### Step 2: Creating the Dockerfile
+
+To make sure our final image is distroless while still being able to install dependencies with pip,
+our build will consist of two stages: first, we’ll build the application using the
+`python:latest-dev` image variant, a Wolfi-based image that includes pip and other useful tools for
+development. Then, we’ll create a separate stage for the final image. The resulting image will be
+based on the distroless Python Wolfi image, which means it doesn’t come with pip or even a shell.
+
+Begin by editing a Dockerfile, with Nano for instance.
+
+```shell
+nano Dockerfile
+```
+
+The following Dockerfile will:
+
+1. Start a new build stage based on the `python:latest-dev` image and call it `builder`;
+2. Create a new virtual environment to cleanly hold the application's dependencies;
+2. Copy `requirements.txt` from the current directory to the `/inky` location in the container;
+3. Run `pip install --no-cache-dir -r requirements.txt` to install dependencies;
+4. Start a new build stage based on the `python:latest` image;
+5. Copy the dependencies in the virtual environment from the builder stage, and the source code from
+   the current directory;
+6. Set up the application as the entry point for this image.
+
+Copy this configuration to your own Dockerfile:
+
+```Dockerfile
+FROM cgr.dev/chainguard/python:latest-dev as builder
+
+ENV LANG=C.UTF-8
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+ENV PATH="/inky/venv/bin:$PATH"
+
+WORKDIR /inky
+
+RUN python -m venv /inky/venv
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+FROM cgr.dev/chainguard/python:latest
+
+WORKDIR /inky
+
+ENV PYTHONUNBUFFERED=1
+ENV PATH="/venv/bin:$PATH"
+
+COPY inky.py inky.png ./
+COPY --from=builder /inky/venv /venv
+
+ENTRYPOINT [ "python", "/inky/inky.py" ]
+```
+
+Save the file when you’re finished.
+
+You can now build the image. If you receive a permission error, try running under `sudo`.
+
+```shell
+docker build -t inky .
+```
+
+Once the build is finished, run the image with:
+
+```shell
+docker run --rm inky
+```
+
+And you should get output similar to what you got before, with a printed Inky on the command line.
+
+## Advanced Usage
+
+{{< blurb/images-advanced image="Python" >}}
