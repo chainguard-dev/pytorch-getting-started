@@ -36,7 +36,7 @@ data_transforms = {
     ),
 }
 
-data_dir = "data/octopus-penguin-whale"
+data_dir = Path(__file__).resolve().parents[0] / Path("data/octopus-penguin-whale")
 image_datasets = {
     x: datasets.ImageFolder(os.path.join(data_dir, x), data_transforms[x])
     for x in ["train", "val"]
