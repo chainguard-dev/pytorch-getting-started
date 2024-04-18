@@ -175,7 +175,9 @@ if __name__ == "__main__":
         model = torch.load(model_file)
     else:
         model = run_training()
+        print('Attempting to save the model as octopus_whale_penguin_model.pt in the same directory as this script...')
         torch.save(model, script_directory / Path("octopus_whale_penguin_model.pt"))
+        print('\nModel saved. To run inference using the stored model, rerun this script with a path to an image as an argument.')
 
     if len(argv) >= 2:
         input_file = Path(argv[1])

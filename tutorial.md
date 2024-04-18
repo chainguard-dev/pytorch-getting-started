@@ -83,7 +83,7 @@ Run the following to download necessary files and train the model. If there is a
 Note: if you're following this tutorial in an environment without access to GPU, remove the ` --gpus all \` line below before running.
 
 ```bash
-mkdir image_classification && cd image_classification && \\
+mkdir image_classification && cd image_classification && \
  curl https://codeload.github.com/chainguard-dev/pytorch-cuda-getting-started/tar.gz/main | \
  tar -xz --strip=1 pytorch-cuda-getting-started-main/ && \
  docker run --user root --rm -it \
@@ -182,7 +182,7 @@ Using the above script, you have now downloaded the resnet18 pretrained model an
 
 The script above has been written to check if a model exists in the same folder and, if present, load it. It will also perform inference if a path to an image is passed as an argument when the script is run. Since we should now have a model file present on our host machine, let's go ahead and run inference on a new image of an octopus.
 
-Feel free to find your own image of an octopus on the web, or run the below command to download an image not in the training data. The training data used realistic images, so you may not wish to choose, for example, a styled or cartoon image of an octopus.
+Feel free to find your own image of an octopus on the web, or run the below command to download [an image](https://raw.githubusercontent.com/chainguard-dev/pytorch-cuda-getting-started/main/inference-images/octopus.jpg) not in the training data. The training data used realistic images, so you may not wish to choose, for example, a stylized or cartoon image of an octopus.
 
 ```bash
 curl https://raw.githubusercontent.com/chainguard-dev/pytorch-cuda-getting-started/main/inference-images/octopus.jpg > octopus.jpg
@@ -196,3 +196,17 @@ Now that we have a novel input, let's run inference to classify the image:
  -v "$PWD/:/home/nonroot/octopus-detector" \
  cgr.dev/chainguard/pytorch-cuda12:latest \
  -c "python /home/nonroot/octopus-detector/image_classification.py /home/nonroot/octopus-detector/octopus.jpg"
+```
+
+After running this, you should see the model's classification of the image as output:
+
+```bash
+octopus
+```
+
+Feel free to try the above inference on other images of octopus, whales, and penguins. The model should have high accuracy for images similar to those in the training set, which consists of photorealistic images.
+
+## Notes on the Script
+
+In this section, we'll review the script provided in the above steps, highlighting some common options and approaches and a few ways the script might be adapted to other use cases. Deep learning is a complex and emerging field, so this section can only provide a high-level overview and recommendations for moving forward.
+
