@@ -170,7 +170,7 @@ def infer_class(model, img_path):
 
 
 if __name__ == "__main__":
-    model_file = Path("octopus_whale_penguin_model.pt")
+    model_file = script_directory / Path("octopus_whale_penguin_model.pt")
     if model_file.exists():
         model = torch.load(model_file)
     else:

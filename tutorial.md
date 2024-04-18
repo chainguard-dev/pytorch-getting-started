@@ -64,11 +64,11 @@ Once you've determined that your environment has access to CUDA and connected GP
 
 ## Training and Inference Overview
 
-A common workflow in deep learning is to collect labeled data, train a model using that data, and store the model. Later, this model can be loaded and used for inference, or making predictions based on new inputs. For example, we might train a model to recognize animals, then store the model as a serialized and compressed file. Later, and possibly in a new environment, we can load the model and use it to perform a classification task on novel data, such as an image of a whale.
+A common workflow in deep learning is to collect labeled data, train a model using that data, and store the model. Later, this model can be loaded and used for inference, or making predictions based on novel inputs not in the training set. For example, we might train a model to recognize animals, then store the model as a serialized and compressed file. Later, and possibly in a new environment, we can load the model and use it to perform a classification task on novel data, such as an image of a whale.
 
 It is common for model training to be performed in a more controlled developer environment, and for inference to be performed in a less controlled production environment. We will follow this assumption in this tutorial, but be mindful not to use privileged access or root users in production.
 
-In this tutorial, we'll fine-tune a pretrained model for an image classification task. The task will be to classify whether a provided image is an octopus 🐙, a whale 🐳, or a penguin 🐧. We've chosen these for Wolfi / Chainguard Images, Docker, and Linux, respectively. Rather than train a model from scratch, a process that requires a large set of input data, we'll start with a ResNet model with 18 layers (resnet18). Using a fine-tuning approach with a pretrained model with relatively few layers is appropriate when using a limited amount of input data. In our case, we'll be using 60 images for each class, further divided into 40 training and 20 validation images.
+In this tutorial, we'll fine-tune a pretrained model for an image classification task:classifying whether a provided image is an octopus 🐙, a whale 🐳, or a penguin 🐧. We've chosen these animals in appreciation of Wolfi / Chainguard Images, Docker, and Linux, respectively. Rather than train a model from scratch, a process that requires a large set of input data, we'll start with a ResNet model with 18 layers (resnet18). Using a fine-tuning approach with a pretrained model with relatively few layers is appropriate when using a limited amount of input data. In our case, we'll be using 60 images for each class, further divided into 40 training and 20 validation images.
 
 For the training step, we'll be accessing the image as root. This allows us to save the model to a volume and preserve it on the host system. In our inference step, we'll access the container as the nonroot user, an approach that will be more secure for a production use case.
 
@@ -76,290 +76,123 @@ For the training step, we'll be accessing the image as root. This allows us to s
 
 In this section, we'll download prepared data to your environment, download a model training script, and run the script to train and save the model. These tasks will all be performed by running the below command. Further details on the Docker command, input data, and script are provided later in the section.
 
-Download necessary files and train the model with the following:
+First check that `curl` and `tar` are available on your system, and install them if necessary. [Docker Engine](https://docs.docker.com/engine/install/) will also need to be installed.
+
+Run the following to download necessary files and train the model. If there is an issue with the command, see the manual step-by-step instructions below.
+
+Note: if you're following this tutorial in an environment without access to GPU, remove the ` --gpus all \` line below before running.
 
 ```bash
 mkdir image_classification && cd image_classification && \\
  curl https://codeload.github.com/chainguard-dev/pytorch-cuda-getting-started/tar.gz/main | \
  tar -xz --strip=1 pytorch-cuda-getting-started-main/ && \
- docker run --user root --rm -it -v "$PWD/:/home/nonroot/octopus-detector" --gpus all cgr.dev/chainguard/pytorch-cuda12:latest -c "python /home/nonroot/octopus-detector/image_classification.py"
-``` 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-## Example 1 — Minimal Python Chainguard Image
-
-In this example, we'll build and run a distroless Python Chainguard Image in a single-stage build process. We'll first make a demonstration app and then build and run it.
-
-### Step 1: Setting up a Demo Application
-
-We'll start by creating a basic command-line Python application to serve as a demo. This app will generate random octopus facts based on a list in a text file. This app will use the `random` module from the Python standard library.
-
-First, create a directory for your app. You can use any meaningful name and path for you, our example will use `octo-facts/`.
-
-```shell
-mkdir ~/octo-facts/ && cd $_
+ docker run --user root --rm -it \
+ --gpus all \
+ -v "$PWD/:/home/nonroot/octopus-detector" \
+ cgr.dev/chainguard/pytorch-cuda12:latest \
+	-c "python /home/nonroot/octopus-detector/image_classification.py"
 ```
 
-Create a new file to serve as the application entry point. We’ll use `main.py`. You can edit this file in whatever code editor you would like. We'll use Nano as an example.
+The above command creates a new folder, `image_classification`, and changes the working directory to that folder. It then uses `curl` to download the training script and training and validation images from GitHub as a tar file and extracts the files. A container based on the pytorch-cuda12 image is then created and the script and data are shared between host and container in a volume. The model is trained using the provided script and data, and the resulting model is saved to the volume.
 
-```shell
-nano main.py
+Training should take 1-3 minutes in a GPU-equipped environment, and 20-30 minutes in a CPU-only environment. Once the command completes, you can check your current working directory for a trained model as a `.pt` file:
+
+```bash
+$ ls
+README.md  image_classification.py
+data       octopus_whale_penguin_model.pt
 ```
 
-The following Python script defines a light CLI app that takes in a text file, `octo-facts.txt`, and returns a random line from that file.
+## Manual Steps to Fine-Tune the Model
 
-```python
-'''Import random module to implement random.choice() function'''
-import random
+Below are manual steps to perform the above download and training procedure interactively. You may wish to follow these steps if you need to modify the above for your own use case, if you'd like to better understand the steps involved, or if you have difficulty running the above command in your environment. These steps use `git clone` rather than `curl`.
 
+In the below steps, the prompt of your host machine will be denoted as `(host) $`, while the prompt of the container machine will be denoted as `(container) $`
 
-def random_line(text):
-    '''Opens and reads lines of a UTF-8 encoded file, returning a random line'''
-    with open(text, 'r', encoding='UTF-8') as file:
-        line = file.readlines()
-        return random.choice(line)
+1. Check that you have Git and Docker installed:
 
-def main():
-    '''Prints random line from facts.txt; verify your path'''
-    print(random_line('facts.txt'))
+	```bash
+(host) $ git --version
+git version 2.30.2
+(host) $ docker --version
+Docker version 20.10.17, build 100c701
+	 ```
+	 
+2. Clone the [repository with the training and validation data and the training script](https://github.com/chainguard-dev/pytorch-cuda-getting-started) and `cd` into the cloned repository:
 
-if __name__ == "__main__":
-    main()
+	```bash
+git clone https://github.com/chainguard-dev/pytorch-cuda-getting-started.git
+cd pytorch-cuda-getting-started
+	```
 
+3. Run the below command to start an interactive session in a running pytorch-cuda12 Chainguard Image with root access. If your environment doesn't have access to GPU, remove the ` --gpus all \` line before running. Note the volume option, which creates a volume on the container based on the current working directory, allowing access to our training script and data inside the container. Remember that this guide assumes you are training the model in a controlled development environment—do not use root access in any production senario.
+
+	```bash
+(host) $ docker run --user root --rm -it \
+ --gpus all \
+ -v "$PWD/:/home/nonroot/octopus-detector" \
+ cgr.dev/chainguard/pytorch-cuda12:latest
+	 ```
+
+4. You should now have access to an interactive shell inside the container. Navigate to the created volume:
+
+	```bash
+(container) $ cd /home/nonroot/octopus-detector/
+(container) $ pwd
+/home/nonroot/octopus-detector
+	```
+
+5. Run the model-training script:
+
+	```bash
+(container) $ python image_classification.py 
+Downloading: "https://download.pytorch.org/models/resnet18-f37072fd.pth" to /root/.cache/torch/hub/checkpoints/resnet18-f37072fd.pth
+100.0%
+🐙 Epoch 0/24
+🐳 train Loss: 0.9276 Acc: 0.5583
+🐧 val Loss: 0.2275 Acc: 0.9500
+
+[...]
+
+ 🐙 Epoch 24/24
+🐳 train Loss: 0.1940 Acc: 0.9167
+🐧 val Loss: 0.0248 Acc: 1.0000
+
+Training complete in 1m 39s
+Best val Acc: 1.000000
+	```
+
+6. If the script ran successfully, you should have a saved model serialized as a `.pt` file in the current working directory:
+
+	```bash
+(container) $ ls
+octopus_whale_penguin_model.pt data image_classification.py
+	```
+
+7. At this point, you've trained your model. Shut down the container by pressing `Control-d` or by typing `exit` and pressing `Enter`. Since we used a volume, the model should also be present on the host machine:
+
+	```bash
+(host) $ ls
+octopus_whale_penguin_model.pt image_classification.py data
+	```
+
+## Running Inference
+
+Using the above script, you have now downloaded the resnet18 pretrained model and fine-tuned it to detect three classes of images: octopus, whales, and dolphins. Now that the model is trained, we can load it, pass in a new image, and receive the model's prediction. Using an existing model for prediction is called inference, and in many common scenarios inference is run in a production environment. For this reason, we'll access our existing model with the nonroot user in this section.
+
+The script above has been written to check if a model exists in the same folder and, if present, load it. It will also perform inference if a path to an image is passed as an argument when the script is run. Since we should now have a model file present on our host machine, let's go ahead and run inference on a new image of an octopus.
+
+Feel free to find your own image of an octopus on the web, or run the below command to download an image not in the training data. The training data used realistic images, so you may not wish to choose, for example, a styled or cartoon image of an octopus.
+
+```bash
+curl https://raw.githubusercontent.com/chainguard-dev/pytorch-cuda-getting-started/main/inference-images/octopus.jpg > octopus.jpg
 ```
 
-Copy this code to your `main.py` script, save and close the file.
-
-Next, pull down the `facts.txt` file with `curl`. [Inspect the URL](https://raw.githubusercontent.com/chainguard-dev/edu-images-demos/main/python/octo-facts/facts.txt) before downloading it to ensure it is safe to do so. Make sure you are still in the same directory where your `main.py` script is.
-
-```shell
-curl -O https://raw.githubusercontent.com/chainguard-dev/edu-images-demos/main/python/octo-facts/facts.txt
-```
-
-At this point, you can run the script and be sure you are satisfied with the functionality. It is recommended that you use a Python programming environment. Ensure whether you will be using the `python` or `python3` command.
-
-```shell
-python main.py
-```
-
-You should receive the output of a randomized octopus fact.
-
-```
-The wolfi octopus was discovered in 1913.
-```
-
-The demo application is now ready. In the next step, you’ll create a Dockerfile to run your app.
-
-### Step 2: Creating the Dockerfile
-
-For this single-stage build, we'll only use one `FROM` line in our Dockerfile. Our resulting image will be based on the distroless Python Wolfi image, which means it doesn’t come with a package manager or even a shell.
-
-We'll begin by creating a Dockerfile. Again, you can use any code editor of your choice, we'll use Nano for demonstation purposes.
-
-```shell
-nano Dockerfile
-```
-
-The following Dockerfile will:
-
-1. Start a build stage based on the `python:latest` image;
-2. Declare the working directory;
-3. Copy the script and the text file that's being read;
-4. Set up the application as entry point for this image.
-
-```Dockerfile
-FROM cgr.dev/chainguard/python:latest
-
-WORKDIR /octo-facts
-
-COPY main.py facts.txt ./
-
-ENTRYPOINT [ "python", "/octo-facts/main.py" ]
-```
-
-Save the file when you're finished.
-
-You can now build the image. If you receive an error, try again with `sudo`.
-
-```shell
-docker build . -t octo-facts
-```
-
-Once the build is finished, run the image.
-
-```shell
-docker run --rm octo-facts
-```
-
-And you should get output similar to what you got before, with a random octopus fact.
-
-```
-Octopuses can breathe and see through their skin.
-```
-
-You have successfully completed the single-stage Python Chainguard Image. At this point, you can continue to the [multi-stage example](#example-2-multi-stage-build-for-python-chainguard-image) or [advanced usage](#advanced-usage).
-
-## Example 2 — Multi-Stage Build for Python Chainguard Image
-
-In this example, we'll build and run a multi-stage Python Chainguard Image. We'll have a build image
-that includes pip and a shell before creating a final distroless image without these development
-tools for production.
-
-### Step 1: Setting up a Demo Application
-
-We'll start by creating a Python application that will take in an image file and convert it to ANSI escape sequences on the CLI to render an image.
-
-To begin, create a directory for your app. You can use any meaningful name and path that resonates with you, our example will use `inky/`.
-
-```shell
-mkdir ~/inky/ && cd $_
-```
-
-We'll first write out the requirements for our app in a new file, for example we named our file `requirements.txt`. You can edit this file in your preferred code editor, in our case we will use Nano.
-
-```shell
-nano requirements.txt
-```
-
-We'll use version 68.2.2 of Python [setuptools](https://pypi.org/project/setuptools/) and also install [climage](https://pypi.org/project/climage/). We need to use a slightly older version of setuptools for compatability with climage. Add the following text to the file:
-
-```shell
-setuptools==68.2.2
-climage==0.2.0
-```
-
-Save the file and we will next create a new file with our python code called `inky.py`. You can edit this file in whatever code editor you would like. We’ll use Nano as an example.
-
-```shell
-nano inky.py
-```
-
-Add the following Python code which defines a CLI app that takes in an image file, `inky.png`, and
-prints a representation of that file to the terminal:
-
-```python
-'''import climage module to display images on terminal'''
-from climage import convert
-
-
-def main():
-    '''Take in PNG and output as ANSI to terminal'''
-    output = convert('inky.png', is_unicode=True)
-    print(output)
-
-if __name__ == "__main__":
-    main()
-```
-
-Next, pull down the `inky.png` image file with `curl`. [Inspect the URL](https://raw.githubusercontent.com/chainguard-dev/edu-images-demos/main/python/inky/inky.png) before downloading it to ensure it is safe to do so. Make sure you are still in the same directory where your `inky.py` script is.
-
-```shell
-curl -O https://raw.githubusercontent.com/chainguard-dev/edu-images-demos/main/python/inky/inky.png
-```
-
-If you have python and pip installed in your local environment, you can now install the dependencies with `pip` and run our program. Don't worry if you don't have python installed, you can simply skip this step and move onto the Dockerfile.
-
-```shell
-pip install -r requirements.txt
-python inky.py
-```
-
-You'll receive a representation of the Chainguard Inky logo on the command line. With your demo application ready, you're ready to move onto the container stage.
-
-### Step 2: Creating the Dockerfile
-
-To make sure our final image is distroless while still being able to install dependencies with pip,
-our build will consist of two stages: first, we’ll build the application using the
-`python:latest-dev` image variant, a Wolfi-based image that includes pip and other useful tools for
-development. Then, we’ll create a separate stage for the final image. The resulting image will be
-based on the distroless Python Wolfi image, which means it doesn’t come with pip or even a shell.
-
-Begin by editing a Dockerfile, with Nano for instance.
-
-```shell
-nano Dockerfile
-```
-
-The following Dockerfile will:
-
-1. Start a new build stage based on the `python:latest-dev` image and call it `builder`;
-2. Create a new virtual environment to cleanly hold the application's dependencies;
-2. Copy `requirements.txt` from the current directory to the `/inky` location in the container;
-3. Run `pip install --no-cache-dir -r requirements.txt` to install dependencies;
-4. Start a new build stage based on the `python:latest` image;
-5. Copy the dependencies in the virtual environment from the builder stage, and the source code from
-   the current directory;
-6. Set up the application as the entry point for this image.
-
-Copy this configuration to your own Dockerfile:
-
-```Dockerfile
-FROM cgr.dev/chainguard/python:latest-dev as builder
-
-ENV LANG=C.UTF-8
-ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
-ENV PATH="/inky/venv/bin:$PATH"
-
-WORKDIR /inky
-
-RUN python -m venv /inky/venv
-COPY requirements.txt .
-
-RUN pip install --no-cache-dir -r requirements.txt
-
-FROM cgr.dev/chainguard/python:latest
-
-WORKDIR /inky
-
-ENV PYTHONUNBUFFERED=1
-ENV PATH="/venv/bin:$PATH"
-
-COPY inky.py inky.png ./
-COPY --from=builder /inky/venv /venv
-
-ENTRYPOINT [ "python", "/inky/inky.py" ]
-```
-
-Save the file when you’re finished.
-
-You can now build the image. If you receive a permission error, try running under `sudo`.
-
-```shell
-docker build -t inky .
-```
-
-Once the build is finished, run the image with:
-
-```shell
-docker run --rm inky
-```
-
-And you should get output similar to what you got before, with a printed Inky on the command line.
-
-## Advanced Usage
-
-{{< blurb/images-advanced image="Python" >}}
+Now that we have a novel input, let's run inference to classify the image:
+
+```bash
+ docker run --rm -it \
+ --gpus all \
+ -v "$PWD/:/home/nonroot/octopus-detector" \
+ cgr.dev/chainguard/pytorch-cuda12:latest \
+ -c "python /home/nonroot/octopus-detector/image_classification.py /home/nonroot/octopus-detector/octopus.jpg"
