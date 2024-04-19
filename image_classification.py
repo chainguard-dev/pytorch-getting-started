@@ -51,6 +51,7 @@ dataloaders = {
 dataset_sizes = {x: len(image_datasets[x]) for x in ["train", "val"]}
 class_names = image_datasets["train"].classes
 
+# Use CPU as the device if GPUs are not available
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 
@@ -131,9 +132,9 @@ def run_training():
     model_ft = models.resnet18(weights="IMAGENET1K_V1")
     num_ftrs = model_ft.fc.in_features
 
-    # Here the size of each output sample is set to 2.
-    # Alternatively, it can be generalized to ``nn.Linear(num_ftrs, len(class_names))``.
-    model_ft.fc = nn.Linear(num_ftrs, 3)
+    # Set the number of classes
+    # This code chooses a number of classes based on the number of folders in the training data
+    model_ft.fc = nn.Linear(num_ftrs, len(class_names))
 
     model_ft = model_ft.to(device)
 
@@ -157,7 +158,7 @@ def infer_class(model, img_path):
 
     model.eval()
 
-    img = Image.open(img_path)
+    img = Image.open(img_path).convert('RGB')
     img = data_transforms["val"](img)
     img = img.unsqueeze(0)
     img = img.to(device)
