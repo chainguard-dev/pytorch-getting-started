@@ -42,9 +42,10 @@ curl https://raw.githubusercontent.com/chainguard-dev/pytorch-getting-started/ma
 Run in inference to classify the image:
 
 ```bash
-docker run --user root --rm -it \
+cd ~/image_classification && \
+ docker run --user root --rm -it \
  --platform linux/amd64 \
- -v "$PWD/image_classification:/home/nonroot/octopus-detector" \
+ -v "$PWD:/home/nonroot/octopus-detector" \
  cgr.dev/chainguard/pytorch:latest \
  "/home/nonroot/octopus-detector/image_classification.py" \
  "/home/nonroot/octopus-detector/octopus.jpg"
