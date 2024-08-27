@@ -13,6 +13,7 @@ Before running, consider reviewing the following files that will be downloaded:
 - [Training data](https://github.com/chainguard-dev/pytorch-getting-started/tree/main/data/octopus-penguin-whale/train)
 - [Validation data](https://github.com/chainguard-dev/pytorch-getting-started/tree/main/data/octopus-penguin-whale/val)
 
+[Problem with the commands? Create an issue](https://github.com/chainguard-dev/pytorch-getting-started/issues/new?template=Blank+issue)
 
 Training command:
 
@@ -27,7 +28,7 @@ curl https://codeload.github.com/chainguard-dev/pytorch-getting-started/tar.gz/m
  "/home/nonroot/octopus-detector/image_classification.py"
 ```
 
-After running this command, there should be an `octopus_whale_penguin_model.pt` pickled model file in your `~/image_classification` folder on your host machine.
+After running this command, there should be an `octopus_whale_penguin_model.pt` model file in your `~/image_classification` folder on your host machine.
 
 ## Running in Inference
 
