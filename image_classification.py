@@ -175,20 +175,24 @@ def infer_class(model, img_path):
 if __name__ == "__main__":
     model_file = script_directory / Path("octopus_whale_penguin_model.pt")
     if model_file.exists():
-        with torch.serialization.safe_globals(
-            [
-                models.resnet.ResNet,
-                nn.modules.conv.Conv2d,
-                nn.modules.linear.Linear,
-                nn.modules.pooling.AdaptiveAvgPool2d,
-                models.resnet.BasicBlock,
-                nn.modules.container.Sequential,
-                nn.modules.pooling.MaxPool2d,
-                nn.modules.activation.ReLU,
-                nn.modules.batchnorm.BatchNorm2d,
-            ]
-        ):
+        # Versions of pytorch after 2.4 require explicit whitelisting of serialized files
+        if torch.__version__[:3] == '2.3':
             model = torch.load(model_file)
+        else:
+            with torch.serialization.safe_globals(
+                [
+                    models.resnet.ResNet,
+                    nn.modules.conv.Conv2d,
+                    nn.modules.linear.Linear,
+                    nn.modules.pooling.AdaptiveAvgPool2d,
+                    models.resnet.BasicBlock,
+                    nn.modules.container.Sequential,
+                    nn.modules.pooling.MaxPool2d,
+                    nn.modules.activation.ReLU,
+                    nn.modules.batchnorm.BatchNorm2d,
+                ]
+            ):
+                model = torch.load(model_file)
     else:
         model = run_training()
         print(
